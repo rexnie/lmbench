@@ -230,12 +230,12 @@ find_cache(int start, int n, double prev_lat, struct cache_results* p)
 	for (i = start, j = -1; i < n; ++i) {
 		if (p[i].latency < 0.)
 			continue;
-		if (max < p[i].ratio)
-			max = p[i].ratio;
-		if (THRESHOLD < p[i].ratio)
+		if (p[prev].ratio <= p[i].ratio && p[i].ratio > max) {
 			j = i;
-		if (THRESHOLD < max && p[j].len * 2 <= p[i].len)
+			max = p[i].ratio;
+		} else if (p[i].ratio < max && THRESHOLD < max) {
 			return j;
+		}
 		prev = i;
 	}
 	return -1;
@@ -301,6 +301,7 @@ collect_data(size_t start, size_t line, size_t maxlen,
 	for (i = 0; i < state.npages; ++i)
 		state.pages[i] = i * state.pagesize;
 
+	p[0].latency = measure(p[0].len, repetitions, &p[0].variation, &state);
 	p[samples-1].latency = measure(p[samples-1].len, repetitions, 
 				       &p[samples-1].variation, &state);
 	while (p[samples-1].latency <= 0.0) {
@@ -310,7 +311,6 @@ collect_data(size_t start, size_t line, size_t maxlen,
 					       &state);
 		--samples;
 	}
-	p[0].latency = measure(p[0].len, repetitions, &p[0].variation, &state);
 	search(0, samples - 1, repetitions, &state, p);
 
 	/*
@@ -760,6 +760,9 @@ pagesort(size_t n, size_t* pages, double* latencies)
 {
 	int	i, j;
 	double	t;
+
+	if (n <= 1)
+		return;
 
 	for (i = 0; i < n - 1; ++i) {
 		for (j = i + 1; j < n; ++j) {
